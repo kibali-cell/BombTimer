@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<meta http-equiv="X-UA-Compatible" content="ie=edge">
+		<title>Bomb Timer</title>
+		<style>
+			@font-face {
+				font-family: "digital_7_mono";
+				src: url("digital_7_mono.ttf");
+			}
+			
+			* {
+				margin: 0;
+				padding: 0;
+				box-sizing: border-box;
+			}
+
+			body {
+				background-color: #282828;
+				min-height: 100vh;
+				display: flex;
+				justify-content: center;
+				align-items: center;
+				font-family: Arial, sans-serif;
+			}
+
+			.container {
+				position: relative;
+				width: 100%;
+				max-width: 800px;
+				height: 600px;
+				display: flex;
+				justify-content: center;
+				align-items: center;
+			}
+
+			.bomb-container {
+				position: relative;
+				width: 380px;
+				height: 400px;
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+			}
+
+			#bomb {
+				width: 100%;
+				height: auto;
+				cursor: pointer;
+				transition: transform 0.2s;
+			}
+
+			#bomb:hover {
+				transform: scale(1.05);
+			}
+
+			.timer-container {
+				position: relative;
+				margin-top: 20px;
+				width: 200px;
+				height: 60px;
+			}
+
+			.timer-bg {
+				font-family: "digital_7_mono";
+				color: #330000;
+				font-size: 48px;
+				position: absolute;
+				width: 100%;
+				text-align: center;
+			}
+
+			.timer {
+				font-family: "digital_7_mono";
+				color: #ff0000;
+				font-size: 48px;
+				position: absolute;
+				width: 100%;
+				text-align: center;
+				text-shadow: 0 0 10px #ff0000;
+			}
+
+			#explosion {
+				position: fixed;
+				top: 50%;
+				left: 50%;
+				transform: translate(-50%, -50%);
+				width: 100vw;
+				height: 100vh;
+				object-fit: cover;
+				pointer-events: none;
+				z-index: 1000;
+			}
+
+			.controls {
+				position: fixed;
+				bottom: 20px;
+				display: flex;
+				gap: 10px;
+				z-index: 100;
+			}
+
+			.control-btn {
+				padding: 10px 20px;
+				background: #444;
+				color: white;
+				border: none;
+				border-radius: 5px;
+				cursor: pointer;
+				transition: background 0.2s;
+			}
+
+			.control-btn:hover {
+				background: #555;
+			}
+
+			.control-btn:active {
+				background: #666;
+			}
+
+			@media (max-width: 800px) {
+				.bomb-container {
+					width: 280px;
+				}
+
+				.timer-container {
+					width: 150px;
+				}
+
+				.timer, .timer-bg {
+					font-size: 36px;
+				}
+			}
+		</style>
+	</head>
+	<body onload="Init()"> 
+		<div class="container">	
+			<div class="bomb-container" id="THEBOMB"></div>		
+			<div id="THEEXPLOSION"></div>		
+		</div>
+		<div class="controls">
+			<button class="control-btn" onclick="ResetTimer()">Reset</button>
+			<button class="control-btn" onclick="TogglePause()">Pause</button>
+		</div>
+
+		<script>
+			// User settings
+			const initialMinutes = 100;
+			const initialSeconds = 0;
+			const todayIsChristmas = false;
+			
+			// Global variables
+			let minutes = 0;
+			let seconds = 0;
+			let refreshIntervalId = 0;
+			let refreshIntervalId2 = 0;
+			let showTimer = true;
+			let flashCount = 0;
+			let isPaused = false;
+			
+			async function PlayAudio(filename) {
+				try {
+					const audio = new Audio(filename);
+					await audio.play();
+				} catch (error) {
+					console.error('Error playing audio:', error);
+				}
+			}
+			 
+			function Init() { 
+				const bombElement = document.getElementById("THEBOMB");
+				if (todayIsChristmas) {
+					bombElement.innerHTML = '<img src="bomb_christmas.png" id="bomb" onclick="StartTimer()">';
+				} else {
+					bombElement.innerHTML = '<img src="bomb.png" id="bomb" onclick="StartTimer()">';	
+				}
+				bombElement.innerHTML += `
+					<div class="timer-container">
+						<div class="timer-bg">00:00</div>
+						<div class="timer"></div>
+					</div>`;
+				document.getElementById("THEEXPLOSION").innerHTML = '';	
+			}
+
+			function TogglePause() {
+				if (!refreshIntervalId) return;
+				
+				isPaused = !isPaused;
+				if (isPaused) {
+					clearInterval(refreshIntervalId);
+					clearInterval(refreshIntervalId2);
+				} else {
+					refreshIntervalId = setInterval(DecrementTimer, 1000);
+					if (minutes === 0 && seconds === 0) {
+						refreshIntervalId2 = setInterval(FlashTimer, 50);
+					}
+				}
+			}
+
+			function ResetTimer() {
+				clearInterval(refreshIntervalId);
+				clearInterval(refreshIntervalId2);
+				document.getElementById("THEEXPLOSION").innerHTML = '';
+				document.getElementById("THEBOMB").innerHTML = '';
+				Init();
+			}
+			 
+			function TerroristsWin() { 
+				document.getElementById("THEEXPLOSION").innerHTML = '<img src="explosion2.gif" id="explosion">';
+				document.getElementById("THEBOMB").innerHTML = '';
+				clearInterval(refreshIntervalId);
+				clearInterval(refreshIntervalId2);
+				PlayAudio('explode.wav');
+			}
+			 
+			function StartTimer() {
+				if (refreshIntervalId) return; // Prevent multiple starts
+				
+				document.getElementById("THEEXPLOSION").innerHTML = '';
+				minutes = initialMinutes;
+				seconds = initialSeconds;
+				DecrementTimer();
+				flashCount = 3;	
+				clearInterval(refreshIntervalId);
+				clearInterval(refreshIntervalId2);
+				refreshIntervalId = setInterval(DecrementTimer, 1000);
+				refreshIntervalId2 = setInterval(FlashTimer, 50);
+				PlayAudio('armbomb.wav');
+			}
+
+			function FlashTimer() {
+				showTimer = !showTimer;	
+				document.getElementById("timer").style.visibility = showTimer ? "visible" : "hidden";
+				flashCount--;	
+				if (flashCount === 0) {
+					document.getElementById("timer").style.visibility = "visible";
+					clearInterval(refreshIntervalId2);	
+				}	
+			}
+
+			function DecrementTimer() {
+				const timerElement = document.getElementById("timer");
+				let text = minutes.toString().padStart(2, '0') + ":" + seconds.toString().padStart(2, '0');
+				
+				if (minutes === 0 && seconds <= 10 && seconds > 0) {
+					PlayAudio('beep.wav');
+				}
+				if (minutes === 0 && seconds === 0) {
+					refreshIntervalId2 = setInterval(FlashTimer, 50);
+					PlayAudio('doublebeep.wav');
+				}	
+				
+				timerElement.innerHTML = text;		
+				if (seconds === -1 && minutes === 0) {
+					TerroristsWin();
+				}		
+				if (minutes > 0) {
+					if (seconds === 0) {
+						seconds = 60;
+						minutes--;
+					}
+				}
+				if (seconds > -1) {
+					seconds--;
+				}
+			}
+
+			document.body.onkeyup = function(e) {
+				if (e.key === " " || e.code === "Space" || e.keyCode === 32) {	
+					PlayAudio('AK47_Fire1.wav');
+				}
+			}
+		</script>
+	</body>
+</html> 
